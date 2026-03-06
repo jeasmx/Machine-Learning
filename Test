@@ -1,0 +1,1102 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/jeasmx/Machine_Learning_in_WLAN/blob/main/_1a_clasificador_bayesiano_bernoulli.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "##JEAS"
+      ],
+      "metadata": {
+        "id": "ftn9E7ibMznq"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "BUT7nnAUzJzT"
+      },
+      "source": [
+        "# Clasificador bayesiano ingenuo de Bernoulli\n",
+        "En esta libreta programaremos un clasificador bayesiano ingenuo en el cual se presupone que la distribución de los atributos dada la clase es una Bernoulli y hay dos posibles clases."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 16,
+      "metadata": {
+        "id": "9WTkCgB7zJzW"
+      },
+      "outputs": [],
+      "source": [
+        "import numpy as np\n",
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "from sklearn.datasets import fetch_20newsgroups\n",
+        "from sklearn.feature_extraction.text import CountVectorizer\n",
+        "\n",
+        "np.random.seed(42)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "f-kw792rzJzX"
+      },
+      "source": [
+        "## Carga de datos"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "GsggTrNEzJzX"
+      },
+      "source": [
+        "El conjunto de entrenamiento consiste de 11 documentos que pertenecen a las clases de deportes (0) o informática (1). Cada documento es un vector de 8 dimensiones donde cada dimensión representa la frecuencia de las palabras en nuestro vocabulario de interés:\n",
+        "\n",
+        "$$\n",
+        "V = \\begin{vmatrix}\n",
+        "p_{1} = \\textrm{gol}\\\\\n",
+        "p_{2} = \\textrm{maestro}\\\\\n",
+        "p_{3} = \\textrm{velocidad}\\\\\n",
+        "p_{4} = \\textrm{defensa}\\\\\n",
+        "p_{5} = \\textrm{rendimiento}\\\\\n",
+        "p_{6} = \\textrm{campo}\\\\\n",
+        "p_{7} = \\textrm{movimiento}\\\\\n",
+        "p_{8} = \\textrm{ataque}\n",
+        "\\end{vmatrix}  \n",
+        "$$\n",
+        "\n",
+        " Lectura con Pandas:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 17,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 394
+        },
+        "id": "yOEwTCMOzJzY",
+        "outputId": "d6742148-778d-42cf-aed2-a63f029efa2e"
+      },
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "    p1  p2  p3  p4  p5  p6  p7  p8  c \n",
+              "0    1   0   1   0   1   1   0   1   0\n",
+              "1    1   0   1   0   0   1   0   0   0\n",
+              "2    0   0   1   0   1   1   0   1   0\n",
+              "3    0   0   0   1   1   0   1   1   0\n",
+              "4    1   1   0   0   0   1   0   1   0\n",
+              "5    0   0   1   1   1   1   0   0   0\n",
+              "6    0   1   0   1   0   0   1   0   1\n",
+              "7    1   0   0   1   1   0   1   1   1\n",
+              "8    0   1   0   1   0   1   1   0   1\n",
+              "9    0   0   0   1   0   0   1   1   1\n",
+              "10   0   1   1   1   0   0   1   1   1"
+            ],
+            "text/html": [
+              "\n",
+              "  <div id=\"df-26294d53-4808-4363-abc5-abf6f08fc8c3\" class=\"colab-df-container\">\n",
+              "    <div>\n",
+              "<style scoped>\n",
+              "    .dataframe tbody tr th:only-of-type {\n",
+              "        vertical-align: middle;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe tbody tr th {\n",
+              "        vertical-align: top;\n",
+              "    }\n",
+              "\n",
+              "    .dataframe thead th {\n",
+              "        text-align: right;\n",
+              "    }\n",
+              "</style>\n",
+              "<table border=\"1\" class=\"dataframe\">\n",
+              "  <thead>\n",
+              "    <tr style=\"text-align: right;\">\n",
+              "      <th></th>\n",
+              "      <th>p1</th>\n",
+              "      <th>p2</th>\n",
+              "      <th>p3</th>\n",
+              "      <th>p4</th>\n",
+              "      <th>p5</th>\n",
+              "      <th>p6</th>\n",
+              "      <th>p7</th>\n",
+              "      <th>p8</th>\n",
+              "      <th>c</th>\n",
+              "    </tr>\n",
+              "  </thead>\n",
+              "  <tbody>\n",
+              "    <tr>\n",
+              "      <th>0</th>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>1</th>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>2</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>3</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>4</th>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>5</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>6</th>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>7</th>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>8</th>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>9</th>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "    <tr>\n",
+              "      <th>10</th>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>0</td>\n",
+              "      <td>0</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "      <td>1</td>\n",
+              "    </tr>\n",
+              "  </tbody>\n",
+              "</table>\n",
+              "</div>\n",
+              "    <div class=\"colab-df-buttons\">\n",
+              "\n",
+              "  <div class=\"colab-df-container\">\n",
+              "    <button class=\"colab-df-convert\" onclick=\"convertToInteractive('df-26294d53-4808-4363-abc5-abf6f08fc8c3')\"\n",
+              "            title=\"Convert this dataframe to an interactive table.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\" viewBox=\"0 -960 960 960\">\n",
+              "    <path d=\"M120-120v-720h720v720H120Zm60-500h600v-160H180v160Zm220 220h160v-160H400v160Zm0 220h160v-160H400v160ZM180-400h160v-160H180v160Zm440 0h160v-160H620v160ZM180-180h160v-160H180v160Zm440 0h160v-160H620v160Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "\n",
+              "  <style>\n",
+              "    .colab-df-container {\n",
+              "      display:flex;\n",
+              "      gap: 12px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert {\n",
+              "      background-color: #E8F0FE;\n",
+              "      border: none;\n",
+              "      border-radius: 50%;\n",
+              "      cursor: pointer;\n",
+              "      display: none;\n",
+              "      fill: #1967D2;\n",
+              "      height: 32px;\n",
+              "      padding: 0 0 0 0;\n",
+              "      width: 32px;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-convert:hover {\n",
+              "      background-color: #E2EBFA;\n",
+              "      box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "      fill: #174EA6;\n",
+              "    }\n",
+              "\n",
+              "    .colab-df-buttons div {\n",
+              "      margin-bottom: 4px;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert {\n",
+              "      background-color: #3B4455;\n",
+              "      fill: #D2E3FC;\n",
+              "    }\n",
+              "\n",
+              "    [theme=dark] .colab-df-convert:hover {\n",
+              "      background-color: #434B5C;\n",
+              "      box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "      filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "      fill: #FFFFFF;\n",
+              "    }\n",
+              "  </style>\n",
+              "\n",
+              "    <script>\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#df-26294d53-4808-4363-abc5-abf6f08fc8c3 button.colab-df-convert');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      async function convertToInteractive(key) {\n",
+              "        const element = document.querySelector('#df-26294d53-4808-4363-abc5-abf6f08fc8c3');\n",
+              "        const dataTable =\n",
+              "          await google.colab.kernel.invokeFunction('convertToInteractive',\n",
+              "                                                    [key], {});\n",
+              "        if (!dataTable) return;\n",
+              "\n",
+              "        const docLinkHtml = 'Like what you see? Visit the ' +\n",
+              "          '<a target=\"_blank\" href=https://colab.research.google.com/notebooks/data_table.ipynb>data table notebook</a>'\n",
+              "          + ' to learn more about interactive tables.';\n",
+              "        element.innerHTML = '';\n",
+              "        dataTable['output_type'] = 'display_data';\n",
+              "        await google.colab.output.renderOutput(dataTable, element);\n",
+              "        const docLink = document.createElement('div');\n",
+              "        docLink.innerHTML = docLinkHtml;\n",
+              "        element.appendChild(docLink);\n",
+              "      }\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "\n",
+              "  <div id=\"id_d1c7e331-0b8c-4dc7-80bd-6e3ec96af878\">\n",
+              "    <style>\n",
+              "      .colab-df-generate {\n",
+              "        background-color: #E8F0FE;\n",
+              "        border: none;\n",
+              "        border-radius: 50%;\n",
+              "        cursor: pointer;\n",
+              "        display: none;\n",
+              "        fill: #1967D2;\n",
+              "        height: 32px;\n",
+              "        padding: 0 0 0 0;\n",
+              "        width: 32px;\n",
+              "      }\n",
+              "\n",
+              "      .colab-df-generate:hover {\n",
+              "        background-color: #E2EBFA;\n",
+              "        box-shadow: 0px 1px 2px rgba(60, 64, 67, 0.3), 0px 1px 3px 1px rgba(60, 64, 67, 0.15);\n",
+              "        fill: #174EA6;\n",
+              "      }\n",
+              "\n",
+              "      [theme=dark] .colab-df-generate {\n",
+              "        background-color: #3B4455;\n",
+              "        fill: #D2E3FC;\n",
+              "      }\n",
+              "\n",
+              "      [theme=dark] .colab-df-generate:hover {\n",
+              "        background-color: #434B5C;\n",
+              "        box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15);\n",
+              "        filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.3));\n",
+              "        fill: #FFFFFF;\n",
+              "      }\n",
+              "    </style>\n",
+              "    <button class=\"colab-df-generate\" onclick=\"generateWithVariable('df')\"\n",
+              "            title=\"Generate code using this dataframe.\"\n",
+              "            style=\"display:none;\">\n",
+              "\n",
+              "  <svg xmlns=\"http://www.w3.org/2000/svg\" height=\"24px\"viewBox=\"0 0 24 24\"\n",
+              "       width=\"24px\">\n",
+              "    <path d=\"M7,19H8.4L18.45,9,17,7.55,7,17.6ZM5,21V16.75L18.45,3.32a2,2,0,0,1,2.83,0l1.4,1.43a1.91,1.91,0,0,1,.58,1.4,1.91,1.91,0,0,1-.58,1.4L9.25,21ZM18.45,9,17,7.55Zm-12,3A5.31,5.31,0,0,0,4.9,8.1,5.31,5.31,0,0,0,1,6.5,5.31,5.31,0,0,0,4.9,4.9,5.31,5.31,0,0,0,6.5,1,5.31,5.31,0,0,0,8.1,4.9,5.31,5.31,0,0,0,12,6.5,5.46,5.46,0,0,0,6.5,12Z\"/>\n",
+              "  </svg>\n",
+              "    </button>\n",
+              "    <script>\n",
+              "      (() => {\n",
+              "      const buttonEl =\n",
+              "        document.querySelector('#id_d1c7e331-0b8c-4dc7-80bd-6e3ec96af878 button.colab-df-generate');\n",
+              "      buttonEl.style.display =\n",
+              "        google.colab.kernel.accessAllowed ? 'block' : 'none';\n",
+              "\n",
+              "      buttonEl.onclick = () => {\n",
+              "        google.colab.notebook.generateWithVariable('df');\n",
+              "      }\n",
+              "      })();\n",
+              "    </script>\n",
+              "  </div>\n",
+              "\n",
+              "    </div>\n",
+              "  </div>\n"
+            ],
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "dataframe",
+              "variable_name": "df",
+              "summary": "{\n  \"name\": \"df\",\n  \"rows\": 11,\n  \"fields\": [\n    {\n      \"column\": \"p1\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p2\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p3\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p4\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p5\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p6\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p7\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"p8\",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          0,\n          1\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    },\n    {\n      \"column\": \"c \",\n      \"properties\": {\n        \"dtype\": \"number\",\n        \"std\": 0,\n        \"min\": 0,\n        \"max\": 1,\n        \"num_unique_values\": 2,\n        \"samples\": [\n          1,\n          0\n        ],\n        \"semantic_type\": \"\",\n        \"description\": \"\"\n      }\n    }\n  ]\n}"
+            }
+          },
+          "metadata": {},
+          "execution_count": 17
+        }
+      ],
+      "source": [
+        "df = pd.read_csv('https://raw.githubusercontent.com/gibranfp/CursoAprendizajeAutomatizado/master/data/dep_inf.csv')\n",
+        "df"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "g7JU_Dl8zJzZ"
+      },
+      "source": [
+        "Conversion a numpy:"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 18,
+      "metadata": {
+        "id": "x65XXG8-zJzZ"
+      },
+      "outputs": [],
+      "source": [
+        "data = df.to_numpy()\n",
+        "\n",
+        "X_ent = data[:, :-1]\n",
+        "y_ent = data[:, -1]\n",
+        "\n",
+        "X_nuevos = np.array([[0, 0, 0 , 1, 1, 1, 1, 1],\n",
+        "                     [0, 1, 0, 1, 1, 0, 0, 1],\n",
+        "                     [1, 1, 1, 0, 0, 1, 0, 1]])"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "nSHiyiS8zJzb"
+      },
+      "source": [
+        "## Clasificador bayesiano ingenuo para distribución de Bernoulli\n",
+        "Definimos una función para obtener la probabilidad de 0 o 1 dada una distribución de Bernoulli con parámetro $q$, esto es,"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 19,
+      "metadata": {
+        "id": "hFjc0A4w4y8Z"
+      },
+      "outputs": [],
+      "source": [
+        "def bernoulli(x, q):\n",
+        "  \"\"\"\n",
+        "  Distribución de bernoulli\n",
+        "  \"\"\"\n",
+        "  return q**x * (1.0 - q)**(1.0 - x)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-NjqbI7g40px"
+      },
+      "source": [
+        "Definimos una clase con el clasificador bayesiano ingenuo para atributos binarios y estimación de parámetros por máxima verosimilitud."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 20,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "l4GWsvvWzSwq",
+        "outputId": "25e1c524-1db5-48e8-c1f0-b0b8e370e325"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[1 0 0]\n",
+            "[[0.0015588  0.00279273]\n",
+            " [0.00031176 0.        ]\n",
+            " [0.0031176  0.        ]]\n"
+          ]
+        }
+      ],
+      "source": [
+        "class BernoulliNB:\n",
+        "  def fit(self, X, y):\n",
+        "    \"\"\"\n",
+        "    Estima parámetros por máxima verosimilitud\n",
+        "    \"\"\"\n",
+        "    self.clases = np.unique(y)\n",
+        "    self.n_clases = self.clases.size\n",
+        "    self.n_atr = X.shape[-1]\n",
+        "    n = X.shape[0]\n",
+        "\n",
+        "    self.qa = np.zeros((self.n_clases, self.n_atr))\n",
+        "    self.qc = np.zeros((self.n_clases))\n",
+        "    for i,c in enumerate(self.clases):\n",
+        "      Xc = X[y == c]\n",
+        "      nc = Xc.shape[0]\n",
+        "\n",
+        "      cuentas = np.count_nonzero(Xc, axis = 0)\n",
+        "      self.qa[i, :] =  cuentas / nc\n",
+        "      self.qc[i] = nc / n\n",
+        "\n",
+        "  def predict_proba(self, X):\n",
+        "    \"\"\"\n",
+        "    Calcula a posteriori (proporcional) de un conjunto de datos\n",
+        "    \"\"\"\n",
+        "    prop = np.zeros((X.shape[0], self.n_clases))\n",
+        "    for i in range(self.n_clases):\n",
+        "      prop[:, i] = np.prod(bernoulli(X, self.qa[i, :]), axis=1) * self.qc[i]\n",
+        "    return prop\n",
+        "\n",
+        "  def predict(self, X):\n",
+        "    \"\"\"\n",
+        "    Predice clases de conjunto de datos\n",
+        "    \"\"\"\n",
+        "    return self.clases[np.argmax(self.predict_proba(X), axis=1)]\n",
+        "\n",
+        "bnb = BernoulliNB()\n",
+        "bnb.fit(X_ent, y_ent)\n",
+        "\n",
+        "y_bnb = bnb.predict(X_nuevos)\n",
+        "p_bnb = bnb.predict_proba(X_nuevos)\n",
+        "\n",
+        "print(y_bnb)\n",
+        "print(p_bnb)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "k8NffFZQZUeb"
+      },
+      "source": [
+        "El método `predict_proba` calcula la proporcional de la probabilidad a posteriori\n",
+        "\n",
+        "$$\n",
+        "P(y = c \\vert \\mathbf{x}) \\propto P(\\mathbf{x} \\vert y = c)\\cdot P(y = c)\n",
+        "$$\n",
+        "\n",
+        "Para obtener la probabilidad a posteriori es necesario dividir este valor entre\n",
+        "$$\n",
+        "P(\\mathbf{x}) = \\sum_c P(\\mathbf{x}, y = c) = \\sum_c P(\\mathbf{x} \\vert y = c) P(y = c)\n",
+        "$$"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 21,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "TALAdkWrh4gf",
+        "outputId": "6b26c46a-847e-46fe-96c5-361d58db5b4c"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Probabilidad a posteriori = [[0.35821874 0.64178126]\n",
+            " [1.         0.        ]\n",
+            " [1.         0.        ]]\n"
+          ]
+        }
+      ],
+      "source": [
+        "proba_bnb = (p_bnb / p_bnb.sum(axis = 1)[:, np.newaxis])\n",
+        "print(f'Probabilidad a posteriori = {proba_bnb}')"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "sviQpYB6UC-Y"
+      },
+      "source": [
+        "Cuando el número de atributos es muy grande, es conveniente usar escala logarítmica para calcular la proporcional de la probabilidad de cada clase dado un nuevo dato (método `predict_proba`) para evitar un subdesbordamiento.\n",
+        "\n",
+        "$$\n",
+        "\\begin{align*}\n",
+        "\\log\\left[P(y = c \\vert \\mathbf{x})\\right] & \\propto \\log P(\\mathbf{x} \\vert y = c) + \\log P(y = c)\\\\\n",
+        " & = \\underbrace{\\log P(\\mathbf{x} \\vert y = c) + \\log P(y = c)}_{\\log P(y = c, \\mathbf{x}) = a_c} - \\log P(\\mathbf{x})\n",
+        "\\end{align*}\n",
+        "$$\n",
+        "\n",
+        "Sin embargo, al calcular $P(\\mathbf{x})$ en escala logarítmica tendríamos\n",
+        "\n",
+        "$$\n",
+        "\\log P(\\mathbf{x}) = \\log\\left[\\sum_{c=1}^K P(y = c, \\mathbf{x})\\right] = \\log \\left[\\sum_{c = 1}^K e^{a_c}\\right]\n",
+        "$$\n",
+        "\n",
+        "Si algunos valores de $a_c$ son negativos muy grandes, entonces $e^{a_c} \\approx  0$, por lo que la suma puede volverse 0. Una solución a lo anterior es el truco Log-Sum-Exp:\n",
+        "$$\n",
+        "\\begin{align*}\n",
+        "\\log \\left[\\sum_{c = 1}^K e^{a_c}\\right] & = \\log \\left[\\left(\\sum_{c = 1}^K e^{a_c - M}\\right) e^M \\right] = \\log \\left[\\sum_{c = 1}^K e^{a_c - M}\\right] + M\n",
+        "\\end{align*}\n",
+        "$$\n",
+        "\n",
+        "donde $M = \\max_c \\left[a_c\\right]$. Debido a que\n",
+        "\n",
+        "$$\n",
+        "a_c - M \\geq 0,\n",
+        "$$\n",
+        "\n",
+        "tenemos que\n",
+        "$$\n",
+        "e^{a_c - M} \\in (0, 1]\n",
+        "$$"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 22,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "g_e-LoEzZjJu",
+        "outputId": "1c3e2d63-4184-4626-8444-015f9dd5f6b7"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[1 0 0]\n",
+            "[[ -6.46384036  -5.88073664]\n",
+            " [ -8.07327827 -40.82577774]\n",
+            " [ -5.77069318 -80.33516704]]\n",
+            "[[1.55879786e-03 2.79272727e-03]\n",
+            " [3.11759571e-04 1.86033007e-18]\n",
+            " [3.11759571e-03 1.29086330e-35]]\n",
+            "[[-1.02661147e+00 -4.43507752e-01]\n",
+            " [-5.32907052e-15 -3.27524995e+01]\n",
+            " [ 0.00000000e+00 -7.45644739e+01]]\n",
+            "[[3.58218742e-01 6.41781258e-01]\n",
+            " [1.00000000e+00 5.96719474e-15]\n",
+            " [1.00000000e+00 4.14057312e-33]]\n"
+          ]
+        }
+      ],
+      "source": [
+        "class BernoulliNBLog:\n",
+        "  def fit(self, X, y):\n",
+        "    \"\"\"\n",
+        "    Estima parámetros por máxima verosimilitud\n",
+        "    \"\"\"\n",
+        "    self.clases = np.unique(y)\n",
+        "    self.n_clases = self.clases.size\n",
+        "    self.n_atr = X.shape[-1]\n",
+        "    n = X.shape[0]\n",
+        "\n",
+        "    self.qa = np.zeros((self.n_clases, self.n_atr))\n",
+        "    self.qc = np.zeros((self.n_clases))\n",
+        "    for i,c in enumerate(self.clases):\n",
+        "      Xc = X[y == c]\n",
+        "      nc = Xc.shape[0]\n",
+        "\n",
+        "      cuentas = np.count_nonzero(Xc, axis = 0)\n",
+        "      self.qa[i, :] = cuentas / nc\n",
+        "      self.qc[i] = nc / n\n",
+        "\n",
+        "    # Para evitar logarítmos de zero en cálculo\n",
+        "    # de a posteriori\n",
+        "    self.qa[self.qa == 0] = np.nextafter(0, 1)\n",
+        "    self.qa[self.qa == 1] = np.nextafter(1, 0)\n",
+        "\n",
+        "  def predict_log_proba(self, X):\n",
+        "    \"\"\"\n",
+        "    Calcula a posteriori (proporcional) de un conjunto de datos\n",
+        "    \"\"\"\n",
+        "    prop = np.zeros((X.shape[0], self.n_clases))\n",
+        "    for i in range(self.n_clases):\n",
+        "      a0log = (1 - X) @ np.log(1 - self.qa[i, :])\n",
+        "      a1log = X @ np.log(self.qa[i, :])\n",
+        "      prop[:, i] = a0log + a1log + np.log(self.qc[i])\n",
+        "\n",
+        "    return prop\n",
+        "\n",
+        "  def predict(self, X):\n",
+        "    \"\"\"\n",
+        "    Predice clase de conjunto de datos\n",
+        "    \"\"\"\n",
+        "    return self.clases[np.argmax(self.predict_log_proba(X), axis=1)]\n",
+        "\n",
+        "bnbl = BernoulliNBLog()\n",
+        "bnbl.fit(X_ent, y_ent)\n",
+        "\n",
+        "y_bnbl = bnbl.predict(X_nuevos)\n",
+        "p_bnbl = bnbl.predict_log_proba(X_nuevos)\n",
+        "\n",
+        "# LSE\n",
+        "M = np.max(p_bnbl, axis = 1, keepdims = True)\n",
+        "log_px = M + np.log(np.exp(p_bnbl - M).sum(axis = 1, keepdims = True))\n",
+        "log_post = p_bnbl - log_px\n",
+        "post= np.exp(log_post)\n",
+        "\n",
+        "print(y_bnbl) # Clases con mayor probabilidad a posteriori\n",
+        "print(p_bnbl) # Proporcional de probabilidades logarítmicas\n",
+        "print(np.exp(p_bnbl)) # Proporcional de probabilidades\n",
+        "print(log_post) # A posteriori logarítmica\n",
+        "print(post) # posterior"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "hoeKbKknUTaZ"
+      },
+      "source": [
+        "Nota que no es necesario modificar la estimación de parámetros (método `fit`).\n",
+        "\n",
+        "Para estimar parámetros por máximo a posteriori, solo se necesita cambiar el método `fit` de la siguiente manera."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 23,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "cYFprucnNf8o",
+        "outputId": "72ae9913-59b3-459f-be42-8a0b3a88e94c"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "[1 0 0]\n",
+            "[[ -7.94438676  -7.94366196]\n",
+            " [ -7.65670469  -6.89569341]\n",
+            " [ -7.56139451 -10.15103891]]\n",
+            "[[3.54647308e-04 3.54904448e-04]\n",
+            " [4.72863077e-04 1.01213491e-03]\n",
+            " [5.20149385e-04 3.90355061e-05]]\n",
+            "[[-0.69350965 -0.69278485]\n",
+            " [-1.14436283 -0.38335154]\n",
+            " [-0.07236412 -2.66200853]]\n",
+            "[[0.4998188  0.5001812 ]\n",
+            " [0.31842675 0.68157325]\n",
+            " [0.93019213 0.06980787]]\n"
+          ]
+        }
+      ],
+      "source": [
+        "class BernoulliNBLogMAP:\n",
+        "  def fit(self, X, y, alfa=2):\n",
+        "    \"\"\"\n",
+        "    Estima parámetros por máximo a posteriori\n",
+        "    \"\"\"\n",
+        "    self.clases = np.unique(y)\n",
+        "    self.n_clases = self.clases.size\n",
+        "    self.n_atr = X.shape[-1]\n",
+        "    n = X.shape[0]\n",
+        "\n",
+        "    self.qa = np.zeros((self.n_clases, self.n_atr))\n",
+        "    self.qc = np.zeros((self.n_clases))\n",
+        "    for i,c in enumerate(self.clases):\n",
+        "      Xc = X[y == c]\n",
+        "      nc = Xc.shape[0]\n",
+        "\n",
+        "      # Asignamos misma alfa para todas las categorías\n",
+        "      self.qc[i] = (nc + alfa - 1) / (n + alfa * self.n_clases - self.n_clases)\n",
+        "      cuentas = np.count_nonzero(Xc, axis = 0)\n",
+        "      self.qa[i, :] = (cuentas + alfa - 1) / (nc + self.n_atr + alfa - 2)\n",
+        "\n",
+        "  def predict_log_proba(self, X):\n",
+        "    \"\"\"\n",
+        "    Calcula a posteriori (proporcional) de un conjunto de datos\n",
+        "    \"\"\"\n",
+        "    prop = np.zeros((X.shape[0], self.n_clases))\n",
+        "    for i in range(self.n_clases):\n",
+        "      a0log = (1 - X) @ np.log(1 - self.qa[i, :])\n",
+        "      a1log = X @ np.log(self.qa[i, :])\n",
+        "      prop[:, i] = a0log + a1log + np.log(self.qc[i])\n",
+        "\n",
+        "    return prop\n",
+        "\n",
+        "  def predict(self, x):\n",
+        "    \"\"\"\n",
+        "    Predice clases de un conjunto de datos\n",
+        "    \"\"\"\n",
+        "    return self.clases[np.argmax(self.predict_log_proba(x), axis=1)]\n",
+        "\n",
+        "bnblm = BernoulliNBLogMAP()\n",
+        "bnblm.fit(X_ent, y_ent)\n",
+        "\n",
+        "y_bnblm = bnblm.predict(X_nuevos)\n",
+        "p_bnblm = bnblm.predict_log_proba(X_nuevos)\n",
+        "\n",
+        "# LSE\n",
+        "M = np.max(p_bnblm, axis = 1, keepdims = True)\n",
+        "log_px_map = M + np.log(np.exp(p_bnblm - M).sum(axis = 1, keepdims = True))\n",
+        "log_post_map = p_bnblm - log_px_map\n",
+        "post_map = np.exp(log_post_map)\n",
+        "\n",
+        "print(y_bnbl) # Clases con mayor probabilidad a posteriori\n",
+        "print(p_bnblm) # Proporcional de probabilidades logarítmicas\n",
+        "print(np.exp(p_bnblm)) # Proporcional de probabilidades\n",
+        "print(log_post_map) # A posteriori logarítmica\n",
+        "print(post_map) # posterior"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "OkxPZNUvF4K_"
+      },
+      "source": [
+        "## Clasificación de documentos por tema\n",
+        "Probaremos nuestro clasificador bayesiano ingenuo en la clasificación de documentos por tema usando el conjunto de datos _20 newsgroups_."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 24,
+      "metadata": {
+        "id": "k_xhsQiEE3rq"
+      },
+      "outputs": [],
+      "source": [
+        "ng_ent = fetch_20newsgroups(subset='train',\n",
+        "                            shuffle=False,\n",
+        "                            random_state=42)\n",
+        "\n",
+        "ng_prueba = fetch_20newsgroups(subset='test',\n",
+        "                               shuffle=False,\n",
+        "                               random_state=42)"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "xQRcXu-BUGeB"
+      },
+      "source": [
+        "Dividimos el conjunto de entrenamiento en subconjuntos de entrenamiento y validación."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 25,
+      "metadata": {
+        "id": "U-76MEIdUMQV"
+      },
+      "outputs": [],
+      "source": [
+        "docs_ent, docs_val, y_ent, y_val = train_test_split(ng_ent.data,\n",
+        "                                                    ng_ent.target,\n",
+        "                                                    shuffle=True,\n",
+        "                                                    test_size = 0.2,\n",
+        "                                                    stratify = ng_ent.target,\n",
+        "                                                    random_state = 42)\n",
+        "y_prueba = ng_prueba.target"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "jnzAQB4wWbPg"
+      },
+      "source": [
+        "Veamos cómo están distribuidas las clases en el conjunto de entrenamiento"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 26,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 488
+        },
+        "id": "gyuWjJv6O894",
+        "outputId": "afa1b10c-71c2-478b-eb16-2892ceda38c1"
+      },
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "<Figure size 1500x500 with 3 Axes>"
+            ],
+            "image/png": "iVBORw0KGgoAAAANSUhEUgAABNYAAAHXCAYAAABwEde9AAAAOnRFWHRTb2Z0d2FyZQBNYXRwbG90bGliIHZlcnNpb24zLjEwLjAsIGh0dHBzOi8vbWF0cGxvdGxpYi5vcmcvlHJYcgAAAAlwSFlzAAAPYQAAD2EBqD+naQAAVYFJREFUeJzt3XlYlPX+//HXgGyCgJCAqOC+4JZLKS7HShKNUtNj6jHFsjoZamqZ2XHvmFtpy0GtjmlZtthxKdfcK8UlzTK31NwV3AIRExTu3x/9mG8jqMzN4Az6fFzXXJdzL5/7fY/jvL1fc899WwzDMAQAAAAAAADALm7OLgAAAAAAAAAojgjWAAAAAAAAABMI1gAAAAAAAAATCNYAAAAAAAAAEwjWAAAAAAAAABMI1gAAAAAAAAATCNYAAAAAAAAAEwjWAAAAAAAAABMI1gAAAHDLnT9/XmPGjNHmzZudXQoAAIBpBGsAiszs2bNlsVh0+PBhZ5cCALedw4cPy2KxaPbs2dZpo0ePlsViKdD6FotFo0ePvmW1/ZVhGOrVq5fWrVunBg0aFEkNAICiZ7FY1K9fP2eXATgVwRpwA7nB0PUemzZtsmu8pUuXFtlBzJ3q0qVLGj16tNatW+fsUgDghtq3b6+SJUsqPT39usv06NFDnp6eOnfu3C2s7NabNGmSDh8+rAULFsjT09PZ5QBAsXDtsYm3t7eqV6+ufv36KSUlxdnlAXesEs4uACgOxo4dq0qVKuWZXrVqVbvGWbp0qRITE++YcK1nz57q1q2bvLy8imwbly5d0pgxYyRJ9913X5FtBwAKq0ePHvr666+1YMEC9erVK8/8S5cuadGiRWrbtq2Cg4NNbWP48OF6+eWXC1tqoUVGRuqPP/6Qh4dHnnmXL1/W1atXtXTpUgUGBt764gCgmMs9Nrl8+bK+//57TZ8+XUuXLtUvv/yikiVLOrs84I5DsAYUQLt27dS4ceNbus2rV68qJyenWH+T7+7uLnd3d2eXAQAuoX379ipVqpTmzp2bb7C2aNEiZWRkqEePHqa3UaJECZUo4fz/3uWeSZEfb29v/etf/7rFFQHA7eOvxyZPPfWUgoODNWXKFC1atEjdu3fPs3xGRoZ8fX1vdZnAHYOfggKFlHsdmddff13vvfeeqlSpIi8vL91zzz3aunWrdbnevXsrMTFRkmxO4b52jDfffNM6xu7duyVJe/fu1d///ncFBQXJ29tbjRs31ldffWVTR+6p4Rs2bNDgwYNVpkwZ+fr66tFHH9WZM2dsll20aJHi4uIUHh4uLy8vValSRa+++qqys7NtlrvvvvtUp04d/fzzz2rVqpVKliypqlWr6ssvv5QkrV+/Xk2aNJGPj49q1KihVatW5VvTtddYW7ZsmVq2bClfX1+VKlVKcXFx2rVrl80yvXv3lp+fn06cOKGOHTvKz89PZcqU0Ysvvmit8/DhwypTpowkacyYMdbX9K9nBK5Zs8a6rcDAQHXo0EF79uy58V8qABQBHx8fderUSatXr9bp06fzzJ87d65KlSqlFi1a6MUXX1TdunXl5+cnf39/tWvXTj/99NNNt5HfNdYyMzM1aNAglSlTRqVKlVL79u11/PjxPOseOXJEzz33nGrUqCEfHx8FBwerS5cu+V4nMzU1VYMGDVLFihXl5eWl8uXLq1evXjp79qyk619jrSCfybn7cODAAfXu3VuBgYEKCAjQE088oUuXLt30NQCAO80DDzwgSTp06JD1/9AHDx7UQw89pFKlSlm/sKlYsaJ69+6dZ/377rsvzy8/MjMzNWrUKFWtWlVeXl6qUKGCXnrpJWVmZuZbwyeffKIaNWrI29tbjRo10rfffmsz354eAxQ3zv9KEygG0tLSrAcLuSwWi81PdebOnav09HT985//lMVi0aRJk9SpUyf99ttv8vDw0D//+U+dPHlSK1eu1Jw5c/LdzqxZs3T58mU988wz8vLyUlBQkHbt2qXmzZurXLlyevnll+Xr66svvvhCHTt21P/+9z89+uijNmP0799fpUuX1qhRo3T48GG9+eab6tevnz7//HPrMrNnz5afn58GDx4sPz8/rVmzRiNHjtSFCxc0efJkm/F+//13Pfzww+rWrZu6dOmi6dOnq1u3bvrkk080cOBAPfvss/rHP/6hyZMn6+9//7uOHTumUqVKXfe1nDNnjuLj4xUbG6uJEyfq0qVLmj59ulq0aKEff/xRFStWtC6bnZ2t2NhYNWnSRK+//rpWrVqlN954Q1WqVFHfvn1VpkwZTZ8+XX379tWjjz6qTp06SZLq1asnSVq1apXatWunypUra/To0frjjz/0zjvvqHnz5tq+fbvNtgDgVujRo4c+/PBDffHFFzYXez5//rxWrFih7t2769SpU1q4cKG6dOmiSpUqKSUlRe+++65atWql3bt3Kzw83K5tPvXUU/r444/1j3/8Q82aNdOaNWsUFxeXZ7mtW7dq48aN6tatm8qXL6/Dhw9r+vTpuu+++7R7927rz4suXryoli1bas+ePXryySfVsGFDnT17Vl999ZWOHz+uu+66K9867P1Mfuyxx1SpUiWNHz9e27dv13//+1+FhIRo4sSJdu0/ANzuDh48KEnWY5OrV68qNjZWLVq00Ouvv273z0NzcnLUvn17ff/993rmmWdUq1Yt7dy5U1OnTtWvv/6qhQsX2iy/fv16ff755xowYIC8vLw0bdo0tW3bVlu2bFGdOnUkFbzHAMWSAeC6Zs2aZUjK9+Hl5WUYhmEcOnTIkGQEBwcb58+ft667aNEiQ5Lx9ddfW6clJCQY+f2zyx3D39/fOH36tM281q1bG3Xr1jUuX75snZaTk2M0a9bMqFatWp5aY2JijJycHOv0QYMGGe7u7kZqaqp12qVLl/LU8M9//tMoWbKkzXZatWplSDLmzp1rnbZ3715DkuHm5mZs2rTJOn3FihWGJGPWrFl5ajp06JBhGIaRnp5uBAYGGk8//bTNtpOTk42AgACb6fHx8YYkY+zYsTbLNmjQwGjUqJH1+ZkzZwxJxqhRo/Ls0913322EhIQY586ds0776aefDDc3N6NXr155lgeAonb16lWjbNmyRnR0tM30GTNmGJKMFStWGJcvXzays7Nt5h86dMjw8vKy+UzM7R1//dwdNWqUTZ/ZsWOHIcl47rnnbMb7xz/+keezM7/ekJSUZEgyPvroI+u0kSNHGpKM+fPn51k+t//kV1tBP5Nz9+HJJ5+0GfvRRx81goOD82wTAO4Uuf+3XrVqlXHmzBnj2LFjxmeffWYEBwcbPj4+xvHjx63/h3755ZfzrB8ZGWnEx8fnmd6qVSujVatW1udz5swx3NzcjO+++85mudxetWHDBuu03GOjH374wTrtyJEjhre3t/Hoo49apxW0xwDFET8FBQogMTFRK1eutHksW7bMZpmuXbuqdOnS1uctW7aUJP32228F3k7nzp2tP22U/jyDYc2aNXrssceUnp6us2fP6uzZszp37pxiY2O1f/9+nThxwmaMZ555xuZnQC1btlR2draOHDlinebj42P9c+64LVu21KVLl7R3716b8fz8/NStWzfr8xo1aigwMFC1atVSkyZNrNNz/3yj/V25cqVSU1PVvXt3676cPXtW7u7uatKkidauXZtnnWeffdbmecuWLQv0mp46dUo7duxQ7969FRQUZJ1er149Pfjgg1q6dOlNxwAAR3N3d1e3bt2UlJRk8/OXuXPnKjQ0VK1bt5aXl5fc3P78L1p2drbOnTsnPz8/1ahRQ9u3b7dre7mfdQMGDLCZPnDgwDzL/rU3XLlyRefOnVPVqlUVGBhos93//e9/ql+/fp4zpiXl+RlqLjOfyfl9/p87d04XLlzIdxsAcKeIiYlRmTJlVKFCBXXr1k1+fn5asGCBypUrZ12mb9++psefN2+eatWqpZo1a9r8nz33J6fX/p89OjpajRo1sj6PiIhQhw4dtGLFCuslXAraY4DiiJ+CAgVw77333vTmBRERETbPc0O233//vcDbufbOowcOHJBhGBoxYoRGjBiR7zqnT5+2aaIFqWPXrl0aPny41qxZk+cAJS0tzeZ5+fLl8xwoBQQEqEKFCnmmXbuda+3fv1/S/10H4lr+/v42z729vW2Cxtz9Kchrmhsk1qhRI8+8WrVqacWKFVzIFYBT9OjRQ1OnTtXcuXP1yiuv6Pjx4/ruu+80YMAAubu7KycnR2+99ZamTZumQ4cO2Vz/0t67hR45ckRubm6qUqWKzfT8Phv/+OMPjR8/XrNmzdKJEydkGIZ13l97w8GDB9W5c2e767jedq/3mXyjfnZtvwCAO0liYqKqV6+uEiVKKDQ0VDVq1LB+ISP9eSOb8uXLmx5///792rNnT57/h+e69jqh1apVy7NM9erVdenSJZ05c0ZhYWEF7jFAcUSwBjjI9e5++demcTN//SZH+vP6BpL04osvKjY2Nt91qlatalcdqampatWqlfz9/TV27FhVqVJF3t7e2r59u4YOHWrd5s3GM7O/uWPPmTNHYWFheeZfeyc77igK4HbUqFEj1axZU59++qleeeUVffrppzIMw3px6ddee00jRozQk08+qVdffVVBQUFyc3PTwIED83xGO1L//v01a9YsDRw4UNHR0QoICJDFYlG3bt2KdLvX44i+CgC3o5t96f/XM5//6npnFWdnZ9t85ubk5Khu3bqaMmVKvstf+wV7QbhajwEciWANuIWu18yup3LlypIkDw8PxcTEOKSGdevW6dy5c5o/f77+9re/WacfOnTIIePfSO4ZEyEhIQ7bn+u9ppGRkZKkffv25Zm3d+9e3XXXXZytBsBpevTooREjRujnn3/W3LlzVa1aNd1zzz2SpC+//FL333+/Zs6cabNOamrqdW8McD2RkZHKycnRwYMHbc4Wy++z8csvv1R8fLzeeOMN67TLly8rNTXVZrkqVarol19+sbuO622Xz2QAuDVKly6d5zNd+vOs4tzjDunPz/mffvpJrVu3LtDxS+6vUv7q119/VcmSJa1nvRW0xwDFEddYA26h3IOGgjaQkJAQ3XfffXr33Xd16tSpPPPPnDljdw2530b99Rv/rKwsTZs2ze6x7BUbGyt/f3+99tprunLlSp75ZvYn9w5C176mZcuW1d13360PP/zQZt4vv/yib775Rg899JDd2wIAR8k9O23kyJHasWOH9bn05+f0tWdlzZs3L881NQuiXbt2kqS3337bZvqbb76ZZ9n8tvvOO+/Y/BRV+vN6oD/99JMWLFiQZ4zrnU3GZzIAOF+VKlW0adMmZWVlWactXrxYx44ds1nuscce04kTJ/T+++/nGeOPP/5QRkaGzbSkpCSb66QdO3ZMixYtUps2bazHHgXtMUBxxBlrQAEsW7Ysz0X9JalZs2b5nmZ9PbkX9RwwYIBiY2OtF7G+kcTERLVo0UJ169bV008/rcqVKyslJUVJSUk6fvy4fvrpJ7v2pVmzZipdurTi4+M1YMAAWSwWzZkz55b8tMbf31/Tp09Xz5491bBhQ3Xr1k1lypTR0aNHtWTJEjVv3lz/+c9/7BrTx8dHUVFR+vzzz1W9enUFBQWpTp06qlOnjiZPnqx27dopOjpaffr00R9//KF33nlHAQEBGj16dNHsJAAUQKVKldSsWTMtWrRIkmyCtYcfflhjx47VE088oWbNmmnnzp365JNPbM4mKKi7775b3bt317Rp05SWlqZmzZpp9erVOnDgQJ5lH374Yc2ZM0cBAQGKiopSUlKSVq1alee6bkOGDNGXX36pLl266Mknn1SjRo10/vx5ffXVV5oxY4bq16+fby18JgOAcz311FP68ssv1bZtWz322GM6ePCgPv744zzX4ezZs6e++OILPfvss1q7dq2aN2+u7Oxs7d27V1988YVWrFhh81PUOnXqKDY2VgMGDJCXl5f1C/sxY8ZYlylojwGKI4I1oABGjhyZ7/RZs2bpvvvuK/A4nTp1Uv/+/fXZZ5/p448/lmEYNw3WoqKi9MMPP2jMmDGaPXu2zp07p5CQEDVo0OC6dd1IcHCwFi9erBdeeEHDhw9X6dKl9fjjj6t169bXvY6bI/3jH/9QeHi4JkyYoMmTJyszM1PlypVTy5Yt9cQTT5ga87///a/69++vQYMGKSsrS6NGjVKdOnUUExOj5cuXa9SoURo5cqQ8PDzUqlUrTZw4Mc+NIgDgVuvRo4c2btyoe++91+Z6ma+88ooyMjI0d+5cff7552rYsKGWLFmil19+2dR2PvjgA5UpU0affPKJFi5cqAceeEBLlizJc42ct956S+7u7vrkk090+fJlNW/eXKtWrcrTG/z8/PTdd99p1KhRWrBggT788EOFhISodevWN7xYNp/JAOBcsbGxeuONNzRlyhQNHDhQjRs3th4X/JWbm5sWLlyoqVOn6qOPPtKCBQtUsmRJVa5cWc8//7yqV69us3yrVq0UHR2tMWPG6OjRo4qKitLs2bNVr1496zIF7TFAcWQxuAIsAAAAAAAAYDeusQYAAAAAAACYQLAGAAAAAAAAmECwBgAAAAAAAJhAsAYAAAAAAACYQLAGAAAAAAAAmECwBgAAAAAAAJhQwpkbHz16tMaMGWMzrUaNGtq7d68k6fLly3rhhRf02WefKTMzU7GxsZo2bZpCQ0Otyx89elR9+/bV2rVr5efnp/j4eI0fP14lShR813JycnTy5EmVKlVKFovFMTsHAChWsrOzdeDAAVWtWlXu7u7OLgcA4CT0AwCAYRhKT09XeHi43NxufE6aU4M1Sapdu7ZWrVplff7XQGzQoEFasmSJ5s2bp4CAAPXr10+dOnXShg0bJP3Z9OLi4hQWFqaNGzfq1KlT6tWrlzw8PPTaa68VuIaTJ0+qQoUKjtspAAAAAAAAFGvHjh1T+fLlb7iMxTAM4xbVk8fo0aO1cOFC7dixI8+8tLQ0lSlTRnPnztXf//53SdLevXtVq1YtJSUlqWnTplq2bJkefvhhnTx50noW24wZMzR06FCdOXNGnp6eBaojLS1NgYGBOnbsmPz9/R22fwCA4uP48eOqXbs2vQAA7nD0AwDAhQsXVKFCBaWmpiogIOCGyzr9jLX9+/crPDxc3t7eio6O1vjx4xUREaFt27bpypUriomJsS5bs2ZNRUREWIO1pKQk1a1b1+anobGxserbt6927dqlBg0a5LvNzMxMZWZmWp+np6dLkvz9/WmeAHCHuLYX5F4KgF4AAHcW+gEA4HoKcrkwp968oEmTJpo9e7aWL1+u6dOn69ChQ2rZsqXS09OVnJwsT09PBQYG2qwTGhqq5ORkSVJycrJNqJY7P3fe9YwfP14BAQHWBz8DBYA7z7W9ICoqytklAQCcgH4AACgMpwZr7dq1U5cuXVSvXj3FxsZq6dKlSk1N1RdffFGk2x02bJjS0tKsj2PHjhXp9gAArufaXrB7925nlwQAcAL6AQCgMJz+U9C/CgwMVPXq1XXgwAE9+OCDysrKUmpqqs1ZaykpKQoLC5MkhYWFacuWLTZjpKSkWOddj5eXl7y8vBy/AwCAYuPaXnDhwgUnVgMAcBb6AQCgMJx6xtq1Ll68qIMHD6ps2bJq1KiRPDw8tHr1auv8ffv26ejRo4qOjpYkRUdHa+fOnTp9+rR1mZUrV8rf359TuAEAAAAAAFCknHrG2osvvqhHHnlEkZGROnnypEaNGiV3d3d1795dAQEB6tOnjwYPHqygoCD5+/urf//+io6OVtOmTSVJbdq0UVRUlHr27KlJkyYpOTlZw4cPV0JCAmekAQAAAAAAoEg5NVg7fvy4unfvrnPnzqlMmTJq0aKFNm3apDJlykiSpk6dKjc3N3Xu3FmZmZmKjY3VtGnTrOu7u7tr8eLF6tu3r6Kjo+Xr66v4+HiNHTvWWbsEAAAAAACAO4TFMAzD2UU424ULFxQQEKC0tDRuqQ0Ad6jjx4+rQoUK9AIAuMPRDwAA9uRELnWNNQAAAAAAAKC4IFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwo4ewCALiGii8vccg4hyfEOWSc2w2vLwAAAADcfgjWACdyVNgCAAAAAABuPX4KCgAAAAAAAJjAGWuASZxtlj9X+smjK9UCAAAAALj9EKyh2CAkgbMQogIAAAAA8kOwdpsihEJxR5gFAAAAAHB1BGu4IQI6AAAAAACA/HHzAgAAAAAAAMAEgjUAAAAAAADABH4K6oK4tlTR4vUFAAAAAACOwBlrAAAAAAAAgAkEawAAAAAAAIAJBGsAAAAAAACACVxjDbcE1zUDAAAAAAC3G85YAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMKOHsAgAAt17Fl5cUeozDE+IcUAkAAAAAFF+csQYAAAAAAACYQLAGAAAAAAAAmECwBgAAAAAAAJhAsAYAAAAAAACYQLAGAAAAAAAAmECwBgAAAAAAAJhAsAYAAAAAAACYQLAGAAAAAAAAmECwBgAAAAAAAJhQwtkFAAAKruLLS5xdAgAAAADg/+OMNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABJcJ1iZMmCCLxaKBAwdap12+fFkJCQkKDg6Wn5+fOnfurJSUFJv1jh49qri4OJUsWVIhISEaMmSIrl69eourBwAAAAAAwJ3GJYK1rVu36t1331W9evVspg8aNEhff/215s2bp/Xr1+vkyZPq1KmTdX52drbi4uKUlZWljRs36sMPP9Ts2bM1cuTIW70LAAAAAAAAuMM4PVi7ePGievTooffff1+lS5e2Tk9LS9PMmTM1ZcoUPfDAA2rUqJFmzZqljRs3atOmTZKkb775Rrt379bHH3+su+++W+3atdOrr76qxMREZWVlOWuXAAAAAAAAcAdwerCWkJCguLg4xcTE2Ezftm2brly5YjO9Zs2aioiIUFJSkiQpKSlJdevWVWhoqHWZ2NhYXbhwQbt27bo1OwAAAAAAAIA7Uglnbvyzzz7T9u3btXXr1jzzkpOT5enpqcDAQJvpoaGhSk5Oti7z11Atd37uvOvJzMxUZmam9fmFCxfM7gIAoJi6thekp6c7sRoAgLPQDwAAheG0YO3YsWN6/vnntXLlSnl7e9/SbY8fP15jxoy5pdsEALgWegEAQKIfAPmp+PISh4xzeEKcQ8YBXJnTgrVt27bp9OnTatiwoXVadna2vv32W/3nP//RihUrlJWVpdTUVJuz1lJSUhQWFiZJCgsL05YtW2zGzb1raO4y+Rk2bJgGDx5sfX7hwgVVqFDBEbsFACgmru0FJ06cUFRUlBMrAgA4A/0AroIw687B3/XtxWnBWuvWrbVz506baU888YRq1qypoUOHqkKFCvLw8NDq1avVuXNnSdK+fft09OhRRUdHS5Kio6M1btw4nT59WiEhIZKklStXyt/f/4bN0MvLS15eXkW0ZwCA4uDaXsBlAQDgzkQ/wO3GUaENgIJxWrBWqlQp1alTx2aar6+vgoODrdP79OmjwYMHKygoSP7+/urfv7+io6PVtGlTSVKbNm0UFRWlnj17atKkSUpOTtbw4cOVkJBAcAYAAAAAtylXO+OHMCt/rvT35Eq14Pbi1JsX3MzUqVPl5uamzp07KzMzU7GxsZo2bZp1vru7uxYvXqy+ffsqOjpavr6+io+P19ixY51YNQAAAAC4DgIFwHEIUXEtlwrW1q1bZ/Pc29tbiYmJSkxMvO46kZGRWrp0aRFXBgAAAAAAnIEwC67MpYI1AAAAAIBr4sw3AMiLYA0AAAAAcEfiTCgAhUWwBgAAAAAuiuAHAFybm7MLAAAAAAAAAIojgjUAAAAAAADABH4KCgAAAAC4Zfh5K4DbCcGaA9EgAAAAAAAA7hz8FBQAAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIG7ggIAAAAAANyhKr68pNBjHJ4Q54BKiifOWAMAAAAAAABMIFgDAAAAAAAATOCnoAAAUxxxyrh0Z582DgAAAKB444w1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAE7goKAAAAAABQzFR8eYmzS4A4Yw0AAAAAAAAwhWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwoYSzCwAAAACA203Fl5c4uwQAwC3AGWsAAAAAAACACQRrAAAAAAAAgAkEawAAAAAAAIAJBGsAAAAAAACACQRrAAAAAAAAgAncFRQAAAAAAACmOepOyIcnxDlknFuJM9YAAAAAAAAAEwjWAAAAAAAAABMI1gAAAAAAAAATnBqsTZ8+XfXq1ZO/v7/8/f0VHR2tZcuWWedfvnxZCQkJCg4Olp+fnzp37qyUlBSbMY4ePaq4uDiVLFlSISEhGjJkiK5evXqrdwUAAAAAAAB3GKcGa+XLl9eECRO0bds2/fDDD3rggQfUoUMH7dq1S5I0aNAgff3115o3b57Wr1+vkydPqlOnTtb1s7OzFRcXp6ysLG3cuFEffvihZs+erZEjRzprlwAAAAAAAHCHcOpdQR955BGb5+PGjdP06dO1adMmlS9fXjNnztTcuXP1wAMPSJJmzZqlWrVqadOmTWratKm++eYb7d69W6tWrVJoaKjuvvtuvfrqqxo6dKhGjx4tT09PZ+wWAAAAAAAA7gBODdb+Kjs7W/PmzVNGRoaio6O1bds2XblyRTExMdZlatasqYiICCUlJalp06ZKSkpS3bp1FRoaal0mNjZWffv21a5du9SgQYN8t5WZmanMzEzr8wsXLhTdjgEAbshZt+a+thekp6c7pA4AQPFCPwAAFIbTb16wc+dO+fn5ycvLS88++6wWLFigqKgoJScny9PTU4GBgTbLh4aGKjk5WZKUnJxsE6rlzs+ddz3jx49XQECA9VGhQgXH7hQAwOVd2wuioqKcXRIAwAnoBwCAwnB6sFajRg3t2LFDmzdvVt++fRUfH6/du3cX6TaHDRumtLQ06+PYsWNFuj0AgOu5thcUde8BALgm+gEAoDCc/lNQT09PVa1aVZLUqFEjbd26VW+99Za6du2qrKwspaam2py1lpKSorCwMElSWFiYtmzZYjNe7l1Dc5fJj5eXl7y8vBy8JwCA4uTaXsBlAQDgzkQ/AAAUhulgLSMjQ+vXr9fRo0eVlZVlM2/AgAGmC8rJyVFmZqYaNWokDw8PrV69Wp07d5Yk7du3T0ePHlV0dLQkKTo6WuPGjdPp06cVEhIiSVq5cqX8/f05hRsAAAAAAABFylSw9uOPP+qhhx7SpUuXlJGRoaCgIJ09e1YlS5ZUSEhIgYO1YcOGqV27doqIiFB6errmzp2rdevWacWKFQoICFCfPn00ePBgBQUFyd/fX/3791d0dLSaNm0qSWrTpo2ioqLUs2dPTZo0ScnJyRo+fLgSEhI4Iw0AAAAAAABFylSwNmjQID3yyCOaMWOGAgICtGnTJnl4eOjxxx/X888/X+BxTp8+rV69eunUqVMKCAhQvXr1tGLFCj344IOSpKlTp8rNzU2dO3dWZmamYmNjNW3aNOv67u7uWrx4sfr27avo6Gj5+voqPj5eY8eONbNbAAAAAAAAQIGZCtZ27Nihd999V25ubnJ3d1dmZqYqV66sSZMmKT4+Xp06dSrQODNnzrzhfG9vbyUmJioxMfG6y0RGRmrp0qV21Q8AAAAAAAAUlqm7gnp4eMjN7c9VQ0JCdPToUUlSQEAAd9gEAAAAAADAHcHUGWsNGjTQ1q1bVa1aNbVq1UojR47U2bNnNWfOHNWpU8fRNQIAAAAAAAAux9QZa6+99prKli0rSRo3bpxKly6tvn376syZM3rvvfccWiAAAAAAAADgikydsda4cWPrn0NCQrR8+XKHFQQAAAAAAAAUB6bOWAMAAAAAAADudAU+Y61hw4ZavXq1SpcurQYNGshisVx32e3btzukOAAAAAAAAMBVFThY69Chg7y8vCRJHTt2LKp6AAAAAAAAgGKhwMHaqFGj8v0zAAAAAAAAcCcydY21rVu3avPmzXmmb968WT/88EOhiwIAAAAAAABcnalgLSEhQceOHcsz/cSJE0pISCh0UQAAAAAAAICrMxWs7d69Ww0bNswzvUGDBtq9e3ehiwIAAAAAAABcnalgzcvLSykpKXmmnzp1SiVKFPiybQAAAAAAAECxZSpYa9OmjYYNG6a0tDTrtNTUVL3yyit68MEHHVYcAAAAAAAA4KpMnV72+uuv629/+5siIyPVoEEDSdKOHTsUGhqqOXPmOLRAAAAAAAAAwBWZCtbKlSunn3/+WZ988ol++ukn+fj46IknnlD37t3l4eHh6BoBAAAAAAAAl2P6gmi+vr565plnHFkLAAAAAAAAUGyYDtb279+vtWvX6vTp08rJybGZN3LkyEIXBgAAAAAAALgyU8Ha+++/r759++quu+5SWFiYLBaLdZ7FYiFYAwAAAAAAwG3PVLD273//W+PGjdPQoUMdXQ8AAAAAAABQLLiZWen3339Xly5dHF0LAAAAAAAAUGyYCta6dOmib775xtG1AAAAAAAAAMWGqZ+CVq1aVSNGjNCmTZtUt25deXh42MwfMGCAQ4oDAAAAAAAAXJWpYO29996Tn5+f1q9fr/Xr19vMs1gsBGsAAAAAAAC47ZkK1g4dOuToOgAAAAAAAIBixdQ11nJlZWVp3759unr1qqPqAQAAAAAAAIoFU8HapUuX1KdPH5UsWVK1a9fW0aNHJUn9+/fXhAkTHFogAAAAAAAA4IpMBWvDhg3TTz/9pHXr1snb29s6PSYmRp9//rnDigMAAAAAAABclalrrC1cuFCff/65mjZtKovFYp1eu3ZtHTx40GHFAQAAAAAAAK7K1BlrZ86cUUhISJ7pGRkZNkEbAAAAAAAAcLsyFaw1btxYS5YssT7PDdP++9//Kjo62jGVAQAAAAAAAC7M1E9BX3vtNbVr1067d+/W1atX9dZbb2n37t3auHGj1q9f7+gaAQAAAAAAcJur+PKSmy9UAIcnxDlknIIwdcZaixYttGPHDl29elV169bVN998o5CQECUlJalRo0aOrhEAAAAAAABwOabOWJOkKlWq6P3333dkLQAAAAAAAECxYSpYO3r06A3nR0REmCoGAAAAAAAAKC5MBWsVK1a84d0/s7OzTRcEAAAAAAAAFAemgrUff/zR5vmVK1f0448/asqUKRo3bpxDCgMAAAAAAABcmalgrX79+nmmNW7cWOHh4Zo8ebI6depU6MIAAAAAAAAAV2bqrqDXU6NGDW3dutWRQwIAAAAAAAAuydQZaxcuXLB5bhiGTp06pdGjR6tatWoOKQwAAAAAAABwZaaCtcDAwDw3LzAMQxUqVNBnn33mkMIAAAAAAAAAV2YqWFuzZo1NsObm5qYyZcqoatWqKlHC1JAAAAAAAABAsWIqBbvvvvscXAYAAAAAAABQvJi6ecH48eP1wQcf5Jn+wQcfaOLEiYUuCgAAAAAAAHB1poK1d999VzVr1swzvXbt2poxY0ahiwIAAAAAAABcnalgLTk5WWXLls0zvUyZMjp16lShiwIAAAAAAABcnalgrUKFCtqwYUOe6Rs2bFB4eHihiwIAAAAAAABcnambFzz99NMaOHCgrly5ogceeECStHr1ar300kt64YUXHFogAAAAAAAA4IpMBWtDhgzRuXPn9NxzzykrK0uS5O3traFDh2rYsGEOLRAAAAAAAABwRaaCNYvFookTJ2rEiBHas2ePfHx8VK1aNXl5eTm6PgAAAAAAAMAlmbrGWq7k5GSdP39eVapUkZeXlwzDcFRdAAAAAAAAgEszFaydO3dOrVu3VvXq1fXQQw9Z7wTap08frrEGAAAAAACAO4KpYG3QoEHy8PDQ0aNHVbJkSev0rl27avny5Q4rDgAAAAAAAHBVpq6x9s0332jFihUqX768zfRq1arpyJEjDikMAAAAAAAAcGWmzljLyMiwOVMt1/nz57mBAQAAAAAAAO4IpoK1li1b6qOPPrI+t1gsysnJ0aRJk3T//fc7rDgAAAAAAADAVZn6KeikSZPUunVr/fDDD8rKytJLL72kXbt26fz589qwYYOjawQAAAAAAABcjqkz1urUqaNff/1VLVq0UIcOHZSRkaFOnTrpxx9/VJUqVRxdIwAAAAAAAOBy7D5j7cqVK2rbtq1mzJihf/3rX0VREwAAAAAAAODy7D5jzcPDQz///HNR1AIAAAAAAAAUG6Z+Cvr4449r5syZjq4FAAAAAAAAKDZM3bzg6tWr+uCDD7Rq1So1atRIvr6+NvOnTJnikOIAAAAAAAAAV2VXsPbbb7+pYsWK+uWXX9SwYUNJ0q+//mqzjMVicVx1AAAAAAAAgIuyK1irVq2aTp06pbVr10qSunbtqrfffluhoaFFUhwAAAAAAADgquy6xpphGDbPly1bpoyMDIcWBAAAAAAAABQHpm5ekOvaoA0AAAAAAAC4U9gVrFksljzXUCvMNdXGjx+ve+65R6VKlVJISIg6duyoffv22Sxz+fJlJSQkKDg4WH5+furcubNSUlJsljl69Kji4uJUsmRJhYSEaMiQIbp69arpugAAAAAAAICbsesaa4ZhqHfv3vLy8pL0Z+j17LPP5rkr6Pz58ws03vr165WQkKB77rlHV69e1SuvvKI2bdpo9+7d1jEHDRqkJUuWaN68eQoICFC/fv3UqVMnbdiwQZKUnZ2tuLg4hYWFaePGjTp16pR69eolDw8Pvfbaa/bsHgAAAAAAAFBgdgVr8fHxNs8ff/zxQm18+fLlNs9nz56tkJAQbdu2TX/729+UlpammTNnau7cuXrggQckSbNmzVKtWrW0adMmNW3aVN988412796tVatWKTQ0VHfffbdeffVVDR06VKNHj5anp2ehagQAAAAAAADyY1ewNmvWrKKqQ5KUlpYmSQoKCpIkbdu2TVeuXFFMTIx1mZo1ayoiIkJJSUlq2rSpkpKSVLduXZs7k8bGxqpv377atWuXGjRokGc7mZmZyszMtD6/cOFCUe0SAMBFXdsL0tPTnVgNAMBZ6AcAgMIo1M0LHCknJ0cDBw5U8+bNVadOHUlScnKyPD09FRgYaLNsaGiokpOTrcv8NVTLnZ87Lz/jx49XQECA9VGhQgUH7w0AwNVd2wuioqKcXRIAwAnoBwCAwnCZYC0hIUG//PKLPvvssyLf1rBhw5SWlmZ9HDt2rMi3CQBwLdf2gt27dzu7JACAE9APAACFYddPQYtKv379tHjxYn377bcqX768dXpYWJiysrKUmppqc9ZaSkqKwsLCrMts2bLFZrzcu4bmLnMtLy8v6w0YAAB3pmt7AZcFAIA7E/0AAFAYTj1jzTAM9evXTwsWLNCaNWtUqVIlm/mNGjWSh4eHVq9ebZ22b98+HT16VNHR0ZKk6Oho7dy5U6dPn7Yus3LlSvn7+3MaNwAAAAAAAIqMU89YS0hI0Ny5c7Vo0SKVKlXKek20gIAA+fj4KCAgQH369NHgwYMVFBQkf39/9e/fX9HR0WratKkkqU2bNoqKilLPnj01adIkJScna/jw4UpISOCsNAAAAAAAABQZpwZr06dPlyTdd999NtNnzZql3r17S5KmTp0qNzc3de7cWZmZmYqNjdW0adOsy7q7u2vx4sXq27evoqOj5evrq/j4eI0dO/ZW7QYAAAAAAADuQE4N1gzDuOky3t7eSkxMVGJi4nWXiYyM1NKlSx1ZGgAAAAAAAHBDLnNXUAAAAAAAAKA4IVgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMIFgDAAAAAAAATCBYAwAAAAAAAEwgWAMAAAAAAABMKOHsAgAAAOxR8eUlhR7j8IQ4B1TimFpwffw9XZ+jXhsAAFA4BGsAANzGXClQIAiAvVzp/QsAAJAfgjUAAFwQgULR4vUFAACAIxCsAQCAW4IwCwAAALcbbl4AAAAAAAAAmMAZawAAAMAdyFFnkXL9RADAnYwz1gAAAAAAAAATCNYAAAAAAAAAE/gpKAAAAFDMcDMQAABcA2esAQAAAAAAACY4NVj79ttv9cgjjyg8PFwWi0ULFy60mW8YhkaOHKmyZcvKx8dHMTEx2r9/v80y58+fV48ePeTv76/AwED16dNHFy9evIV7AQAAAAAAgDuRU4O1jIwM1a9fX4mJifnOnzRpkt5++23NmDFDmzdvlq+vr2JjY3X58mXrMj169NCuXbu0cuVKLV68WN9++62eeeaZW7ULAAAAAAAAuEM59Rpr7dq1U7t27fKdZxiG3nzzTQ0fPlwdOnSQJH300UcKDQ3VwoUL1a1bN+3Zs0fLly/X1q1b1bhxY0nSO++8o4ceekivv/66wsPDb9m+AAAAAAAA4M7istdYO3TokJKTkxUTE2OdFhAQoCZNmigpKUmSlJSUpMDAQGuoJkkxMTFyc3PT5s2bb3nNAAAAAAAAuHO47F1Bk5OTJUmhoaE200NDQ63zkpOTFRISYjO/RIkSCgoKsi6Tn8zMTGVmZlqfX7hwwVFlAwCKiWt7QXp6uhOrAQA4C/0AAFAYLnvGWlEaP368AgICrI8KFSo4uyQAwC12bS+IiopydkkAACegHwAACsNlg7WwsDBJUkpKis30lJQU67ywsDCdPn3aZv7Vq1d1/vx56zL5GTZsmNLS0qyPY8eOObh6AICru7YX7N6929klAQCcgH4AACgMlw3WKlWqpLCwMK1evdo67cKFC9q8ebOio6MlSdHR0UpNTdW2bdusy6xZs0Y5OTlq0qTJdcf28vKSv7+/zQMAcGe5theUKlXK2SUBAJyAfgAAKAynXmPt4sWLOnDggPX5oUOHtGPHDgUFBSkiIkIDBw7Uv//9b1WrVk2VKlXSiBEjFB4ero4dO0qSatWqpbZt2+rpp5/WjBkzdOXKFfXr10/dunXjjqAAAKep+PISZ5cAAAAA4BZwarD2ww8/6P7777c+Hzx4sCQpPj5es2fP1ksvvaSMjAw988wzSk1NVYsWLbR8+XJ5e3tb1/nkk0/Ur18/tW7dWm5uburcubPefvvtW74vAAAAAAAAuLM4NVi77777ZBjGdedbLBaNHTtWY8eOve4yQUFBmjt3blGUBwAAAOAmHHGW7uEJcQ6oBACAW89lr7EGAAAAAAAAuDKCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwIQSzi4AAAAAwJ2t4stLHDLO4QlxDhkHAICC4ow1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwASCNQAAAAAAAMAEgjUAAAAAAADABII1AAAAAAAAwITbJlhLTExUxYoV5e3trSZNmmjLli3OLgkAAAAAAAC3sdsiWPv88881ePBgjRo1Stu3b1f9+vUVGxur06dPO7s0AAAAAAAA3KZui2BtypQpevrpp/XEE08oKipKM2bMUMmSJfXBBx84uzQAAAAAAADcpko4u4DCysrK0rZt2zRs2DDrNDc3N8XExCgpKSnfdTIzM5WZmWl9npaWJkm6cOFCoWrJybxUqPUBAObZ+xl+bS84efKkqXHyQz8AAOcw8xleVP2AXgAAzlPYz/Dc9Q3DuOmyxT5YO3v2rLKzsxUaGmozPTQ0VHv37s13nfHjx2vMmDF5pleoUKFIagQAFL2ANx0zDr0AAIovR/UCiX4AAMWZo/pBenq6AgICbrhMsQ/WzBg2bJgGDx5sfZ6Tk6Pz588rODhYFovF1JgXLlxQhQoVdOzYMfn7+5uuzRHjuFItjhrHlWpx1DjUUrTjUEvRjuNKtZh17RkK2dnZOnbsmGrXri13d3fT496Or+/ttk+uVIujxnGlWhw1DrUU7Ti3Yy1mFUU/uB1fX1cax5VqcdQ41FK041BL0Y7jSrU4imEYSk9PV3h4+E2XLfbB2l133SV3d3elpKTYTE9JSVFYWFi+63h5ecnLy8tmWmBgoEPq8ff3d8gbwBHjuFItjhrHlWpx1DjUUrTjUEvRjuNKtThCZGSkw8a6HV/f222fXKkWR43jSrU4ahxqKdpxbsdaHMFR/eB2fH1daRxXqsVR41BL0Y5DLUU7jivV4gg3O1MtV7G/eYGnp6caNWqk1atXW6fl5ORo9erVio6OdmJlAAAAAAAAuJ0V+zPWJGnw4MGKj49X48aNde+99+rNN99URkaGnnjiCWeXBgAAAAAAgNvUbRGsde3aVWfOnNHIkSOVnJysu+++W8uXL89zQ4Oi5OXlpVGjRuX5iakzxnGlWhw1jivV4qhxqKVox6GWoh3HlWpxNbfj63u77ZMr1eKocVypFkeNQy1FO87tWIsruR1fX1cax5VqcdQ41FK041BL0Y7jSrU4g8UoyL1DAQAAAAAAANgo9tdYAwAAAAAAAJyBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYM1BEhMTVbFiRXl7e6tJkybasmWLXet/++23euSRRxQeHi6LxaKFCxfaXcP48eN1zz33qFSpUgoJCVHHjh21b98+u8eZPn266tWrJ39/f/n7+ys6OlrLli2ze5y/mjBhgiwWiwYOHGjXeqNHj5bFYrF51KxZ01QNJ06c0OOPP67g4GD5+Piobt26+uGHHwq8fsWKFfPUYrFYlJCQYFcd2dnZGjFihCpVqiQfHx9VqVJFr776quy9j0h6eroGDhyoyMhI+fj4qFmzZtq6desN17nZ+8wwDI0cOVJly5aVj4+PYmJitH//frvHmT9/vtq0aaPg4GBZLBbt2LHDrjGuXLmioUOHqm7duvL19VV4eLh69eqlkydP2l3L6NGjVbNmTfn6+qp06dKKiYnR5s2b7R7nr5599llZLBa9+eabdo3Ru3fvPO+ftm3bmqplz549at++vQICAuTr66t77rlHR48eLfAY+b2XLRaLJk+ebFctFy9eVL9+/VS+fHn5+PgoKipKM2bMsHufUlJS1Lt3b4WHh6tkyZJq27Ztvu89V1fYXiC5Tj8oil4gOb8fFLYXSI7pB47qBZLz+oEjesHNxiloP3ClXlCQcQrSDxzRCwoyTkH6Ab3Afhwb3Jize4HEsYHEsQHHBv+HY4PCIVhzgM8//1yDBw/WqFGjtH37dtWvX1+xsbE6ffp0gcfIyMhQ/fr1lZiYaLqO9evXKyEhQZs2bdLKlSt15coVtWnTRhkZGXaNU758eU2YMEHbtm3TDz/8oAceeEAdOnTQrl27TNW1detWvfvuu6pXr56p9WvXrq1Tp05ZH99//73dY/z+++9q3ry5PDw8tGzZMu3evVtvvPGGSpcuXeAxtm7dalPHypUrJUldunSxq5aJEydq+vTp+s9//qM9e/Zo4sSJmjRpkt555x27xnnqqae0cuVKzZkzRzt37lSbNm0UExOjEydOXHedm73PJk2apLffflszZszQ5s2b5evrq9jYWF2+fNmucTIyMtSiRQtNnDjRVC2XLl3S9u3bNWLECG3fvl3z58/Xvn371L59e7v3qXr16vrPf/6jnTt36vvvv1fFihXVpk0bnTlzxq5xci1YsECbNm1SeHi43bVIUtu2bW3eR59++qnd4xw8eFAtWrRQzZo1tW7dOv38888aMWKEvL29CzzGX2s4deqUPvjgA1ksFnXu3NmuWgYPHqzly5fr448/1p49ezRw4ED169dPX331VYHHMQxDHTt21G+//aZFixbpxx9/VGRkpGJiYuz+/HImR/QCyXX6gaN7geT8fuCIXiA5ph84qhdIzusHjugFNxunoP3AlXpBQce5WT9wRC8oyDgF6Qf0AvtwbHBjzu4FEscGuTg24NggF8cGhWSg0O69914jISHB+jw7O9sIDw83xo8fb2o8ScaCBQsKXdfp06cNScb69esLPVbp0qWN//73v3avl56eblSrVs1YuXKl0apVK+P555+3a/1Ro0YZ9evXt3u71xo6dKjRokWLQo/zV88//7xRpUoVIycnx6714uLijCeffNJmWqdOnYwePXoUeIxLly4Z7u7uxuLFi22mN2zY0PjXv/5VoDGufZ/l5OQYYWFhxuTJk63TUlNTDS8vL+PTTz8t8Dh/dejQIUOS8eOPP9pVS362bNliSDKOHDlSqHHS0tIMScaqVavsHuf48eNGuXLljF9++cWIjIw0pk6datcY8fHxRocOHW5YX0HG6dq1q/H4448XaoxrdejQwXjggQfsHqd27drG2LFjbabd7H147Tj79u0zJBm//PKLdVp2drZRpkwZ4/33379hTa7E0b3AMFyvH5jtBYbhGv2gKHqBYZjrB47oBYbhOv3AEb3gZuPkulk/cKVecL1x7O0HjugF1xvnWjfrB/SCm+PY4PpcoRcYBscG+eHYgGODv+LYwD6csVZIWVlZ2rZtm2JiYqzT3NzcFBMTo6SkJCdWJqWlpUmSgoKCTI+RnZ2tzz77TBkZGYqOjrZ7/YSEBMXFxdm8Pvbav3+/wsPDVblyZfXo0SPPTxwK4quvvlLjxo3VpUsXhYSEqEGDBnr//fdN15SVlaWPP/5YTz75pCwWi13rNmvWTKtXr9avv/4qSfrpp5/0/fffq127dgUe4+rVq8rOzs7zrbSPj4+pb+0k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KleubHh6ehphYWFGQkKCkZqaesN1bvY+y8nJMUaMGGGEhoYaXl5eRuvWrfPd15uNM2vWrHznjxo1qkBj5N6KO7/H2rVrC1zLH3/8YTz66KNGeHi44enpaZQtW9Zo3769sWXLFrv36Vr53VL7RmNcunTJaNOmjVGmTBnDw8PDiIyMNJ5++mkjOTnZVC0zZ840qlatanh7exv169c3Fi5caPcY7777ruHj43PD983Nxjl16pTRu3dvIzw83PD29jZq1KhhvPHGG3luNX+zcd566y2jfPnyhoeHhxEREWEMHz7c7n8TrqCwvcAwXKcfFFUvMAzn9gNH9ALDKHw/cFQvMAzn9QNH9IKbjVPQfuBKveBm4xS0HziiFxR0nJv1A3qB/Tg2uDmODf7EscHNx+DYgGMDV+8HFsNw0au/AQAAAAAAAC6Ma6wBAAAAAAAAJhCsAQAAAAAAACYQrAEAAAAAAAAmEKwBAAAAAAAAJhCsAQAAAAAAACYQrAEAAAAAAAAmEKwBAAAAAAAAJhCsAbgl3n33Xa1du9bZZQAAnIx+AACgF+B2QrAGoMi99957mjlzpu69915nlwIAcCL6AQCAXoDbDcEa4EKSk5PVv39/Va5cWV5eXqpQoYIeeeQRrV69ukDrz549W4GBgUVbpJ22bNmit956S4sXL5avr6+zywGAYoF+AACgFwDFQwlnFwDgT4cPH1bz5s0VGBioyZMnq27durpy5YpWrFihhIQE7d2719kl2u3KlSu69957tWvXLmeXAgDFBv0AAEAvAIoPzlgDXMRzzz0ni8WiLVu2qHPnzqpevbpq166twYMHa9OmTZKkKVOmqG7duvL19VWFChX03HPP6eLFi5KkdevW6YknnlBaWposFossFotGjx4tScrMzNSLL76ocuXKydfXV02aNNG6detstv/++++rQoUKKlmypB599FFNmTIlzzdc06dPV5UqVeTp6akaNWpozpw5NvMtFoumT5+u9u3by9fXV+PGjdO6detksViUmpoqSTp37py6d++ucuXKqWTJkqpbt64+/fRTh7+eAFBc0Q8AAPQCoBgxADjduXPnDIvFYrz22ms3XG7q1KnGmjVrjEOHDhmrV682atSoYfTt29cwDMPIzMw03nzzTcPf3984deqUcerUKSM9Pd0wDMN46qmnjGbNmhnffvutceDAAWPy5MmGl5eX8euvvxqGYRjff/+94ebmZkyePNnYt2+fkZiYaAQFBRkBAQHWbc+fP9/w8PAwEhMTjX379hlvvPGG4e7ubqxZs8a6jCQjJCTE+OCDD4yDBw8aR44cMdauXWtIMn7//XfDMAzj+PHjxuTJk40ff/zROHjwoPH2228b7u7uxubNmx34igJA8UQ/oB8AAL2AXoDihWANcAGbN282JBnz58+3a7158+YZwcHB1uezZs2yaXiGYRhHjhwx3N3djRMnTthMb926tTFs2DDDMAyja9euRlxcnM38Hj162IzVrFkz4+mnn7ZZpkuXLsZDDz1kfS7JGDhwoM0y1zbP/MTFxRkvvPDCdecDwJ2CfkA/AAB6Ab0AxQs/BQVcgGEYBVpu1apVat26tcqVK6dSpUqpZ8+eOnfunC5dunTddXbu3Kns7GxVr15dfn5+1sf69et18OBBSdK+ffvy3JXn2ud79uxR8+bNbaY1b95ce/bssZnWuHHjG+5Ddna2Xn31VdWtW1dBQUHy8/PTihUrdPTo0ZvuPwDc7ugH9AMAoBfQC1C8cPMCwAVUq1ZNFovlhhchPXz4sB5++GH17dtX48aNU1BQkL7//nv16dNHWVlZKlmyZL7rXbx4Ue7u7tq2bZvc3d1t5vn5+Tl0PyTd9O4+kydP1ltvvaU333zTek2IgQMHKisry+G1AEBxQz+gHwAAvYBegOKFM9YAFxAUFKTY2FglJiYqIyMjz/zU1FRt27ZNOTk5euONN9S0aVNVr15dJ0+etFnO09NT2dnZNtMaNGig7OxsnT59WlWrVrV5hIWFSZJq1KihrVu32qx37fNatWppw4YNNtM2bNigqKgou/Z1w4YN6tChgx5//HHVr19flStX1q+//mrXGABwu6If0A8AgF5AL0DxQrAGuIjExERlZ2fr3nvv1f/+9z/t379fe/bs0dtvv63o6GhVrVpVV65c0TvvvKPffvtNc+bM0YwZM2zGqFixoi5evKjVq1fr7NmzunTpkqpXr64ePXqoV69emj9/vg4dOqQtW7Zo/PjxWrJkiSSpf//+Wrp0qaZMmaL9+/fr3Xff1bJly2SxWKxjDxkyRLNnz9b06dO1f/9+TZkyRfPnz9eLL75o135Wq1ZNK1eu1MaNG7Vnzx7985//VEpKSuFfQAC4TdAPAAD0AqAYcfI13gD8xcmTJ42EhAQjMjLS8PT0NMqVK2e0b9/eWLt2rWEYhjFlyhSjbNmyho+PjxEbG2t89NFHeS7++eyzzxrBwcGGJGPUqFGGYRhGVlaWMXLkSKNixYqGh4eHUbZsWePRRx81fv75Z+t67733nlGuXDnDx8fH6Nixo/Hvf//bCAsLs6lv2rRpRuXKlQ0PDw+jevXqxkcffWQzX5KxYMECm2nXXqD03LlzRocOHQw/Pz8jJCTEGD58uNGrVy+jQ4cOjngJAeC2QD8AANALgOLBYhgFvDIigDvK008/rb179+q7775zdikAACeiHwAA6AXA9XHzAgCSpNdff10PPvigfH19tWzZMn344YeaNm2as8sCANxi9AMAAL0AKDjOWAMgSXrssce0bt06paenq3Llyurfv7+effZZZ5cFALjF6AcAAHoBUHAEawAAAAAAAIAJ3BUUAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAwgWANAAAAAAAAMIFgDQAAAAAAADCBYA0AAAAAAAAw4f8Bgrk/bRwOipMAAAAASUVORK5CYII=\n"
+          },
+          "metadata": {}
+        }
+      ],
+      "source": [
+        "f,axs = plt.subplots(1,3, figsize=(15,5), sharey=True)\n",
+        "\n",
+        "axs[0].hist(y_ent, bins=[i for i in range(21)])\n",
+        "axs[0].set_xticks(np.unique(y_ent))\n",
+        "axs[0].set_xlabel(u'Categoría')\n",
+        "axs[0].set_ylabel('Frecuencia')\n",
+        "axs[0].set_title(u'Entrenamiento')\n",
+        "\n",
+        "axs[1].hist(y_val, bins=[i for i in range(21)])\n",
+        "axs[1].set_xticks(np.unique(y_val))\n",
+        "axs[1].set_xlabel(u'Categoría')\n",
+        "axs[1].set_title(u'Validación')\n",
+        "\n",
+        "axs[2].hist(y_prueba, bins=[i for i in range(21)])\n",
+        "axs[2].set_xticks(np.unique(y_prueba))\n",
+        "axs[2].set_xlabel(u'Categoría')\n",
+        "axs[2].set_title(u'Prueba')\n",
+        "\n",
+        "plt.subplots_adjust(wspace=0, hspace=0)\n",
+        "plt.show()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "BzwXwJkAdO1m"
+      },
+      "source": [
+        "Definimos una función para calcular la exactitud:\n",
+        "$$\n",
+        "\\text{Exactitud} = \\frac{\\text{Aciertos}}{\\text{Total}}\n",
+        "$$"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 27,
+      "metadata": {
+        "id": "UU086Z9Sk9dL"
+      },
+      "outputs": [],
+      "source": [
+        "def exactitud(y, y_pred):\n",
+        "  return (pred == y_val).mean()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-YWzry1PWCs4"
+      },
+      "source": [
+        "En `scikit-learn` dentro del submódulo `naive_bayes` están definidos clasificadores bayesianos ingenuos con distintas distribuciones para los atributos. Compararemos nuestro clasificador con el `BernoulliNB` de `scikit-learn` para distintos tamaños de vocabulario."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "rgGhGHnoGmPf",
+        "outputId": "77a12604-3616-45bb-9f15-86577a18e053"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Exactitud = 0.7039\n",
+            "Exactitud = 0.7561\n",
+            "Exactitud = 0.7835\n",
+            "Exactitud = 0.7981\n"
+          ]
+        }
+      ],
+      "source": [
+        "tam = np.arange(2000, 22000, 2000)\n",
+        "exact_tam = []\n",
+        "for t in tam:\n",
+        "  vec = CountVectorizer(max_features=t,\n",
+        "                        stop_words='english',\n",
+        "                        binary=True)\n",
+        "\n",
+        "  X_ent = vec.fit_transform(docs_ent)\n",
+        "  X_val = vec.transform(docs_val)\n",
+        "\n",
+        "  cb = BernoulliNBLogMAP()\n",
+        "  cb.fit(X_ent.toarray(), y_ent)\n",
+        "  pred = cb.predict(X_val.toarray())\n",
+        "  exact_tam.append(exactitud(y_val, pred))\n",
+        "\n",
+        "  print(f'Exactitud = {exact_tam[-1]:.4f}')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "HKk-4jJrMVB1"
+      },
+      "outputs": [],
+      "source": [
+        "X_ent.toarray()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "rF55fjLLDoE9"
+      },
+      "source": [
+        "Graficamos el rendimiento con respecto al tamaño del vocabulario."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "nNQ4Drf-i0TY"
+      },
+      "outputs": [],
+      "source": [
+        "plt.plot(tam, exact_tam)\n",
+        "plt.xlabel(u'Tamaño de vocabulario')\n",
+        "plt.ylabel(u'Exactitud')\n",
+        "plt.show()"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "M13TqIU2MVB1"
+      },
+      "source": [
+        "##"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "OYYkF_fKMVB1"
+      },
+      "source": [
+        "##"
+      ]
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "display_name": "Python 3 (ipykernel)",
+      "language": "python",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.14.3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
